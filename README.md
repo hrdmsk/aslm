@@ -7,6 +7,7 @@ ASLM (Asset Library Manager) は、ローカルのUnityパッケージとBooth/G
 
 ディレクトリ構成
 
+```
 src/
 ├── components/
 │   ├── ExplorerLayout.vue  # アプリケーション全体のレイアウト枠
@@ -17,7 +18,7 @@ src/
 ├── stores/
 │   └── fileSystem.js       # 状態管理：現在のパス、ファイルリスト、選択状態
 └── App.vue                 # ルートコンポーネント
-
+```
 
 主要コンポーネントの役割
 
