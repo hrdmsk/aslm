@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"google.golang.org/genai"
@@ -15,25 +16,29 @@ type BoothProductInfo struct {
 	ImageURL   string `json:"image_url"`
 }
 
-// ExtractBoothProductInfo uses Gemini API to extract product information from HTML
+// ExtractBoothProductInfo uses Gemini API with Google Search Grounding
 func ExtractBoothProductInfo(html string, apiKey string) (*BoothProductInfo, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	// Initialize client with API key
+	// ドキュメント準拠: https://docs.cloud.google.com/vertex-ai/generative-ai/docs/start/quickstart?hl=ja&usertype=apikey#go-gen-ai-sdk
+	// APIキーを使用する場合は ClientConfig にセットします。
 	client, err := genai.NewClient(ctx, &genai.ClientConfig{
 		APIKey: apiKey,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Gemini client: %w", err)
 	}
-	// Note: genai.Client might not have a Close method, checking documentation or sample code implies it's not needed or handled differently.
-	// If it has Close, we should defer it. Assuming it doesn't based on user sample.
 
-	prompt := `You are a web scraping assistant. Extract the following information from this Booth product page HTML:
+	// Prompt: HTMLが渡された場合はそれを解析し、不足があれば検索で補うように指示
+	prompt := `You are a web scraping assistant equipped with Google Search.
+Analyze the provided HTML content.
+If the HTML is incomplete or the image URL is missing, USE GOOGLE SEARCH to find the official Booth product page for this item.
 
-1. Product URL (the canonical URL of the product, usually in format: https://USERNAME.booth.pm/items/XXXXXXX)
-2. Main product image URL (the primary/main product thumbnail image)
+Task:
+1. Identify the Product URL (format: https://USERNAME.booth.pm/items/XXXXXXX)
+2. Identify the Main product image URL.
 
 Return the result as JSON with this exact structure:
 {
@@ -41,24 +46,35 @@ Return the result as JSON with this exact structure:
   "image_url": "the main product image URL"
 }
 
-HTML content:
+HTML Snippet:
 ` + html
 
-	fmt.Println("Sending request to Gemini API (google.golang.org/genai)...")
+	fmt.Println("Sending request to Gemini API (google.golang.org/genai) with Grounding...")
+
+	// Google Search Grounding ツールの定義
+	tools := []*genai.Tool{
+		{
+			GoogleSearch: &genai.GoogleSearch{},
+		},
+	}
 
 	// Configure generation options
 	temperature := float32(0.1)
 	config := &genai.GenerateContentConfig{
-		ResponseMIMEType: "application/json",
-		Temperature:      &temperature,
+		// 【修正】JSONモードとTools(Grounding)は併用できないため、MIMEType指定を削除
+		// ResponseMIMEType: "application/json",
+		Temperature: &temperature,
+		Tools:       tools,
 	}
 
-	// Use gemini-1.5-flash-001 as it is a specific version
-	modelName := "gemini-1.5-flash-001"
+	// 【指定修正】Gemini 2.5 Flash を使用
+	// ユーザー指定: 1.5は使用せず、2.5Flashを強制的に使用する
+	modelName := "gemini-2.5-flash"
 
 	resp, err := client.Models.GenerateContent(ctx, modelName, genai.Text(prompt), config)
 	if err != nil {
-		fmt.Printf("Gemini API error: %v\n", err)
+		// エラー発生時の詳細ログ
+		fmt.Printf("Gemini API error for model %s: %v\n", modelName, err)
 		return nil, fmt.Errorf("failed to generate content: %w", err)
 	}
 
@@ -66,18 +82,24 @@ HTML content:
 	jsonStr := resp.Text()
 	fmt.Printf("Gemini raw response: %s\n", jsonStr)
 
-	// Clean up markdown code blocks if present
-	if len(jsonStr) > 7 && jsonStr[:7] == "```json" {
-		jsonStr = jsonStr[7:]
-		if len(jsonStr) > 3 && jsonStr[len(jsonStr)-3:] == "```" {
-			jsonStr = jsonStr[:len(jsonStr)-3]
+	// JSON cleanup logic
+	jsonStr = strings.TrimSpace(jsonStr)
+	if strings.HasPrefix(jsonStr, "```") {
+		if strings.HasPrefix(jsonStr, "```json") {
+			jsonStr = strings.TrimPrefix(jsonStr, "```json")
+		} else {
+			jsonStr = strings.TrimPrefix(jsonStr, "```")
 		}
+		// Unconditional TrimSuffix as per linter suggestion
+		jsonStr = strings.TrimSuffix(jsonStr, "```")
+
+		jsonStr = strings.TrimSpace(jsonStr)
 	}
 
 	var result BoothProductInfo
 	if err := json.Unmarshal([]byte(jsonStr), &result); err != nil {
 		fmt.Printf("JSON parse error: %v\n", err)
-		return nil, fmt.Errorf("failed to parse Gemini response: %w", err)
+		return nil, fmt.Errorf("failed to parse Gemini response: %w, raw: %s", err, jsonStr)
 	}
 
 	return &result, nil
