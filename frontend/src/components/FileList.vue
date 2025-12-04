@@ -42,7 +42,7 @@
         </div>
       </div>
 
-      <!-- 右側：プレビューペイン (別コンポーネント化) -->
+      <!-- 右側:プレビューペイン (別コンポーネント化) -->
       <FilePreview 
         :item="selectedItemData" 
       />
@@ -72,7 +72,12 @@ const selectItem = (item) => {
 // ダブルクリック時の挙動
 const handleDoubleClick = (item) => {
   if (item.type === 'folder') {
-    store.changeDirectory(`${store.currentPath}/${item.name}`);
+    const current = store.currentPath;
+    const separator = current.includes('/') ? '/' : '\\';
+    // パスが既にセパレータで終わっているか確認
+    const needsSeparator = !current.endsWith('/') && !current.endsWith('\\');
+    const newPath = needsSeparator ? `${current}${separator}${item.name}` : `${current}${item.name}`;
+    store.changeDirectory(newPath);
     selectedItemName.value = null; // ディレクトリ移動したら選択解除
   }
 };

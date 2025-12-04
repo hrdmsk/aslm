@@ -194,3 +194,31 @@ func GetProductInfo(path string) (*ProductInfo, error) {
 
 	return &info, nil
 }
+
+// GetParentProductInfo finds the nearest parent product info in the database
+func GetParentProductInfo(path string) (*ProductInfo, error) {
+	currentPath := filepath.Clean(path)
+
+	for {
+		// Move to parent directory
+		parentPath := filepath.Dir(currentPath)
+		if parentPath == currentPath {
+			// Reached root
+			return nil, nil
+		}
+
+		// Try to get product info for parent
+		info, err := GetProductInfo(parentPath)
+		if err == sql.ErrNoRows || info == nil {
+			// Parent not found, continue searching
+			currentPath = parentPath
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+
+		// Found a parent with product info
+		return info, nil
+	}
+}

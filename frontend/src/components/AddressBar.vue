@@ -15,6 +15,8 @@
         :disabled="store.historyIndex >= store.historyStack.length - 1"
       >→</button>
       <button class="nav-btn" @click="store.goUp()" title="上の階層へ">↑</button>
+      <button class="nav-btn" @click="handleRefresh()" title="更新">🔄</button>
+      <button class="nav-btn" @click="handleHome()" title="ホーム">🏠</button>
     </div>
 
     <!-- アドレス入力エリア -->
@@ -44,6 +46,14 @@ const store = useFileSystemStore();
 
 const handleManualInput = (e) => {
   store.changeDirectory(e.target.value);
+};
+
+const handleRefresh = () => {
+  store.changeDirectory(store.currentPath, false);
+};
+
+const handleHome = () => {
+  store.changeDirectory(store.homePath);
 };
 </script>
 

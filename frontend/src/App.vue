@@ -34,8 +34,8 @@ import { useFileSystemStore } from './stores/fileSystem';
 const store = useFileSystemStore();
 const showSettings = ref(false);
 
-// 初期ロード
-store.changeDirectory('D:/VRChatAssetPack');
+// 初期ロード - ホームディレクトリから開始
+store.changeDirectory(store.homePath);
 </script>
 
 <style>

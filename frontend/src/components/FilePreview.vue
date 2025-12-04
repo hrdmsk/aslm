@@ -52,6 +52,21 @@
         </div>
       </div>
 
+      <!-- Auto-fetch buttons -->
+      <div class="auto-fetch-section">
+        <button 
+          class="auto-fetch-btn gemini-btn" 
+          @click="searchProductUrl" 
+          :disabled="isFetching"
+        >
+          <span v-if="!isFetching">✨ Geminiで調べる</span>
+          <span v-else>🔄 解析中...</span>
+        </button>
+        
+        <p v-if="fetchError" class="error-message">{{ fetchError }}</p>
+        <p class="hint-text">※AIがフォルダ名から最適なBooth商品を検索します</p>
+      </div>
+
       <div class="detail-item">
         <label>Thumbnail URL</label>
         <input type="text" v-model="editImageUrl" placeholder="https://..." />
@@ -75,7 +90,7 @@
 
 <script setup>
 import { ref, watch } from 'vue';
-import { UpdateProduct } from '../../wailsjs/go/main/App';
+import { UpdateProduct, FetchBoothInfoWithGemini, FetchBoothImageFromURL } from '../../wailsjs/go/main/App';
 import { BrowserOpenURL } from '../../wailsjs/runtime';
 
 const props = defineProps({
@@ -90,10 +105,13 @@ const isEditing = ref(false);
 const editUrl = ref('');
 const editImageUrl = ref('');
 const editTags = ref('');
+const isFetching = ref(false);
+const fetchError = ref('');
 
 // itemが変わったらフォームをリセット
 watch(() => props.item, (newItem) => {
   isEditing.value = false;
+  fetchError.value = '';
   if (newItem) {
     editUrl.value = newItem.url || '';
     editImageUrl.value = newItem.imageUrl || '';
@@ -107,15 +125,44 @@ const startEditing = () => {
     editImageUrl.value = props.item.imageUrl || '';
     editTags.value = props.item.tags ? props.item.tags.join(', ') : '';
     isEditing.value = true;
+    fetchError.value = '';
   }
 };
 
 const cancelEditing = () => {
   isEditing.value = false;
+  fetchError.value = '';
 };
 
 const openUrl = (url) => {
   BrowserOpenURL(url);
+};
+
+const searchProductUrl = async () => {
+  if (!props.item) return;
+  
+  fetchError.value = '';
+  isFetching.value = true;
+  
+  try {
+    // Use Gemini API to search
+    const info = await FetchBoothInfoWithGemini(props.item.name);
+    editUrl.value = info.productUrl || '';
+    editImageUrl.value = info.imageUrl || '';
+    
+    // Update the item properties immediately for preview
+    props.item.url = info.productUrl || '';
+    props.item.imageUrl = info.imageUrl || '';
+  } catch (error) {
+    console.error('Failed to search Booth:', error);
+    if (error.message && error.message.includes('API key not configured')) {
+      fetchError.value = 'Gemini API Keyが設定されていません。設定画面で設定してください。';
+    } else {
+      fetchError.value = '商品URLの検索に失敗しました';
+    }
+  } finally {
+    isFetching.value = false;
+  }
 };
 
 const saveChanges = async () => {
@@ -125,7 +172,6 @@ const saveChanges = async () => {
   
   try {
     await UpdateProduct(props.item.path, editUrl.value, editImageUrl.value, tagsArray);
-    // alert('保存しました'); // ユーザー体験を損なうのでアラートは削除してもいいかも
     
     // プロパティ更新
     props.item.url = editUrl.value;
@@ -133,6 +179,7 @@ const saveChanges = async () => {
     props.item.tags = tagsArray;
     
     isEditing.value = false;
+    fetchError.value = '';
   } catch (error) {
     console.error('Failed to save:', error);
     alert('保存に失敗しました');
@@ -150,7 +197,7 @@ const saveChanges = async () => {
   background: white;
   border-left: 1px solid #e2e8f0;
   overflow-y: auto;
-  width: 320px; /* Fixed width for better layout */
+  width: 320px;
 }
 
 .empty-state {
@@ -275,6 +322,54 @@ const saveChanges = async () => {
 .input-with-button button:hover {
   background: #f1f5f9;
   border-color: #cbd5e1;
+}
+
+.auto-fetch-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.auto-fetch-btn {
+  color: white;
+  border: none;
+  padding: 12px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 14px;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.gemini-btn {
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  box-shadow: 0 2px 4px rgba(79, 172, 254, 0.2);
+}
+.gemini-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(79, 172, 254, 0.3);
+}
+
+.auto-fetch-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.hint-text {
+  font-size: 11px;
+  color: #94a3b8;
+  margin: 0;
+  font-style: italic;
+}
+
+.error-message {
+  color: #ef4444;
+  font-size: 12px;
+  margin: 0;
 }
 
 .path-text {

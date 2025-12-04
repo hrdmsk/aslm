@@ -3,41 +3,30 @@ import { ref } from 'vue';
 import { ListFiles } from '../../wailsjs/go/main/App';
 
 export const useFileSystemStore = defineStore('fileSystem', () => {
-  // 現在のパス
   const currentPath = ref('D:/VRChatAssetPack');
-
-  // 現在のディレクトリ内のファイルリスト
   const fileList = ref([]);
-
-  // 左側のツリー構造データ
   const directoryTree = ref([]);
+  const parentProductInfo = ref(null);
 
-  // 履歴管理
-  const historyStack = ref([]);
-  const historyIndex = ref(-1);
+  // 履歴管理用
+  const historyStack = ref([currentPath.value]);
+  const historyIndex = ref(0);
 
-  // アクション: パスを変更してGoバックエンドにリクエストを送る
   async function changeDirectory(path, addToHistory = true) {
-    // 同じパスなら何もしない（ただし履歴移動の場合は再読み込みしたいかも？一旦スキップ）
-    if (currentPath.value === path && addToHistory) return;
-
-    console.log(`Fetching files for: ${path}`);
     try {
       const files = await ListFiles(path);
       fileList.value = files || [];
       currentPath.value = path;
 
+      // 履歴に追加
       if (addToHistory) {
-        // 履歴の現在位置より先を削除して新しいパスを追加
-        if (historyIndex.value < historyStack.value.length - 1) {
-          historyStack.value = historyStack.value.slice(0, historyIndex.value + 1);
-        }
+        // 現在のインデックスより後ろの履歴は削除
+        historyStack.value = historyStack.value.slice(0, historyIndex.value + 1);
         historyStack.value.push(path);
         historyIndex.value++;
       }
-    } catch (error) {
-      console.error('Failed to list files:', error);
-      fileList.value = [];
+    } catch (err) {
+      console.error('Error changing directory:', err);
     }
   }
 
@@ -98,6 +87,7 @@ export const useFileSystemStore = defineStore('fileSystem', () => {
     historyIndex,
     goBack,
     goForward,
-    goUp
+    goUp,
+    parentProductInfo
   };
 });

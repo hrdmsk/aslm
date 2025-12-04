@@ -2,6 +2,7 @@
   <div class="settings-container">
     <div class="settings-card">
       <h2>設定</h2>
+      
       <div class="setting-item">
         <label for="home-path">ホームディレクトリ</label>
         <div class="input-group">
@@ -13,6 +14,28 @@
           />
         </div>
       </div>
+
+      <div class="setting-item">
+        <label for="gemini-api-key">
+          Gemini API Key
+          <a href="https://aistudio.google.com/apikey" target="_blank" class="help-link">
+            (取得方法)
+          </a>
+        </label>
+        <div class="input-group">
+          <input 
+            id="gemini-api-key" 
+            :type="showApiKey ? 'text' : 'password'" 
+            v-model="localApiKey" 
+            placeholder="AIzaSy..."
+          />
+          <button @click="showApiKey = !showApiKey" class="toggle-btn">
+            {{ showApiKey ? '👁️' : '👁️‍🗨️' }}
+          </button>
+        </div>
+        <p class="hint-text">Booth商品情報をAIで自動抽出します</p>
+      </div>
+
       <div class="actions" style="display: flex; justify-content: flex-end; gap: 12px;">
         <button @click="$emit('close')" class="save-btn" style="background-color: transparent; color: #64748b; border: 1px solid #e2e8f0;">キャンセル</button>
         <button @click="saveSettings" class="save-btn">保存</button>
@@ -22,16 +45,38 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 import { useFileSystemStore } from '../stores/fileSystem';
+import { GetGeminiApiKey, SaveGeminiApiKey } from '../../wailsjs/go/main/App';
 
 const store = useFileSystemStore();
 const localHomePath = ref(store.homePath);
+const localApiKey = ref('');
+const showApiKey = ref(false);
 const emit = defineEmits(['close']);
 
-const saveSettings = () => {
-  store.setHomePath(localHomePath.value);
-  emit('close');
+onMounted(async () => {
+  try {
+    const apiKey = await GetGeminiApiKey();
+    localApiKey.value = apiKey || '';
+  } catch (error) {
+    console.error('Failed to load API key:', error);
+  }
+});
+
+const saveSettings = async () => {
+  try {
+    // Save API key
+    await SaveGeminiApiKey(localApiKey.value);
+    
+    // Save home path
+    store.setHomePath(localHomePath.value);
+    
+    emit('close');
+  } catch (error) {
+    console.error('Failed to save settings:', error);
+    alert('設定の保存に失敗しました');
+  }
 };
 </script>
 
@@ -71,6 +116,16 @@ h2 {
   font-size: 14px;
 }
 
+.help-link {
+  color: #6366f1;
+  text-decoration: none;
+  font-size: 12px;
+  margin-left: 8px;
+}
+.help-link:hover {
+  text-decoration: underline;
+}
+
 .input-group {
   display: flex;
   gap: 12px;
@@ -92,6 +147,26 @@ h2 {
   background-color: #ffffff;
   outline: none;
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.toggle-btn {
+  padding: 10px 16px;
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: all 0.2s;
+}
+.toggle-btn:hover {
+  background-color: #f1f5f9;
+}
+
+.hint-text {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: #94a3b8;
+  font-style: italic;
 }
 
 .save-btn {
