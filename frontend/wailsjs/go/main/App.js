@@ -5,3 +5,11 @@
 export function Greet(arg1) {
   return window['go']['main']['App']['Greet'](arg1);
 }
+
+export function ListFiles(arg1) {
+  return window['go']['main']['App']['ListFiles'](arg1);
+}
+
+export function UpdateProduct(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['UpdateProduct'](arg1, arg2, arg3, arg4);
+}

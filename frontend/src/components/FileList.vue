@@ -15,13 +15,14 @@
         >
           <!-- サムネイル画像エリア -->
           <div class="thumbnail-wrapper">
-            <!-- フォルダの場合: イメージ画像を表示 -->
+            <!-- フォルダの場合: イメージ画像があれば表示、なければデフォルトアイコン -->
             <img 
-              v-if="item.type === 'folder'"
-              src="https://go.dev/images/gophers/motorcycle.svg" 
+              v-if="item.type === 'folder' && item.imageUrl"
+              :src="item.imageUrl" 
               alt="Folder Thumbnail" 
               class="thumbnail-image"
             />
+            <div v-else-if="item.type === 'folder'" class="folder-icon-large">📁</div>
             
             <!-- ファイルの場合: 大きなアイコンを表示 -->
             <span v-else class="file-icon-large">📄</span>
@@ -82,10 +83,10 @@ const handleDoubleClick = (item) => {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background-color: #ffffff;
-  font-family: 'Segoe UI', sans-serif;
-  font-size: 13px;
-  overflow: hidden; /* コンテナ自体はスクロールさせない */
+  background-color: #f8fafc;
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+  font-size: 14px;
+  overflow: hidden;
 }
 
 /* 左右分割用のラッパー */
@@ -100,69 +101,80 @@ const handleDoubleClick = (item) => {
   flex: 1;
   overflow-y: auto;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-  gap: 12px;
-  padding: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 16px;
+  padding: 24px;
   align-content: start;
 }
 
 .grid-item {
   display: flex;
   flex-direction: column;
-  cursor: default;
-  border: 1px solid transparent;
-  border-radius: 4px;
-  padding: 6px;
+  cursor: pointer;
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 12px;
   text-align: center;
-  transition: all 0.1s ease;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
 
 .grid-item:hover {
-  background-color: #f0f9ff;
-  border-color: #e5f3ff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  border-color: #cbd5e1;
 }
 
 .grid-item.is-selected {
-  background-color: #cce8ff;
-  border-color: #99d1ff;
+  border-color: #6366f1;
+  background-color: #eef2ff;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
 }
 
 /* サムネイル (リスト内) */
 .thumbnail-wrapper {
   width: 100%;
   aspect-ratio: 1 / 1;
-  margin-bottom: 6px;
+  margin-bottom: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
   font-size: 48px;
+  border-radius: 8px;
+  background-color: #f8fafc;
 }
 
 .thumbnail-image {
-  width: auto;
-  height: auto;
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
-.file-icon-large {
-  opacity: 0.6;
-  color: #888;
+.file-icon-large,
+.folder-icon-large {
+  opacity: 0.8;
+  color: #94a3b8;
+}
+
+.folder-icon-large {
+  color: #fbbf24; /* Amber 400 */
 }
 
 .item-details {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 
 .item-name {
-  font-weight: 500;
+  font-weight: 600;
+  color: #1e293b;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  font-size: 13px;
 }
 
 .item-meta {
@@ -171,7 +183,7 @@ const handleDoubleClick = (item) => {
   justify-content: center;
   gap: 6px;
   font-size: 11px;
-  color: #666;
+  color: #64748b;
 }
 
 /* ソース連携タグ */
@@ -179,11 +191,12 @@ const handleDoubleClick = (item) => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 2px 6px;
-  border-radius: 4px;
+  padding: 2px 8px;
+  border-radius: 9999px;
   font-size: 10px;
-  font-weight: bold;
+  font-weight: 600;
+  letter-spacing: 0.025em;
 }
-.tag.booth { background-color: #fff2f2; color: #fc4d50; border: 1px solid #ffd1d1; }
-.tag.gumroad { background-color: #effcf6; color: #26a17b; border: 1px solid #bcebdc; }
+.tag.booth { background-color: #fef2f2; color: #ef4444; border: 1px solid #fee2e2; }
+.tag.gumroad { background-color: #ecfdf5; color: #10b981; border: 1px solid #d1fae5; }
 </style>
