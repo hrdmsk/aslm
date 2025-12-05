@@ -14,6 +14,7 @@ import (
 type BoothInfo struct {
 	ProductURL string
 	ImageURL   string
+	ShopName   string
 }
 
 // ExtractSearchQuery extracts a clean search query from folder name
@@ -99,6 +100,17 @@ func SearchBooth(query string) (*BoothInfo, error) {
 
 	productURL := productURLs[0]
 
+	// Try to infer shop name from product URL subdomain (e.g. username.booth.pm)
+	var shopName string
+	if u, err := url.Parse(productURL); err == nil {
+		host := u.Hostname()
+		// host might be like username.booth.pm
+		parts := strings.Split(host, ".")
+		if len(parts) >= 3 {
+			shopName = parts[0]
+		}
+	}
+
 	// Extract thumbnail image URL
 	// Look for image URL near the product URL
 	// Booth uses data-src or src attributes for images
@@ -116,6 +128,7 @@ func SearchBooth(query string) (*BoothInfo, error) {
 	return &BoothInfo{
 		ProductURL: productURL,
 		ImageURL:   imageURL,
+		ShopName:   shopName,
 	}, nil
 }
 
@@ -156,6 +169,7 @@ func ExtractBoothProductInfo(productURL string) (*BoothInfo, error) {
 
 	// Extract main product image from market-item-detail-item-image class
 	var imageURL string
+	var shopName string
 
 	// Look for the market-item-detail-item-image class and extract image URL
 	// Pattern: find div/element with class containing 'market-item-detail-item-image'
@@ -165,6 +179,22 @@ func ExtractBoothProductInfo(productURL string) (*BoothInfo, error) {
 
 	if len(matches) > 1 {
 		imageURL = matches[1]
+	}
+	// Try to extract shop name from meta author or canonical info
+	authorPattern := regexp.MustCompile(`<meta name="author" content="([^"]+)"`)
+	aMatches := authorPattern.FindStringSubmatch(html)
+	if len(aMatches) > 1 {
+		shopName = strings.TrimSpace(aMatches[1])
+	}
+	if shopName == "" {
+		// Fallback: parse host from productURL
+		if u, err := url.Parse(productURL); err == nil {
+			host := u.Hostname()
+			parts := strings.Split(host, ".")
+			if len(parts) >= 3 {
+				shopName = parts[0]
+			}
+		}
 	} else {
 		// Fallback: Look for img tag inside market-item-detail-item-image more loosely
 		fallbackPattern := regexp.MustCompile(`market-item-detail-item-image[\s\S]{0,500}?<img[^>]+(?:data-src|src)="([^"]+)"`)
@@ -184,5 +214,6 @@ func ExtractBoothProductInfo(productURL string) (*BoothInfo, error) {
 	return &BoothInfo{
 		ProductURL: productURL,
 		ImageURL:   imageURL,
+		ShopName:   shopName,
 	}, nil
 }

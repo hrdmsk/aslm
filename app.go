@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -28,6 +29,7 @@ type FileItem struct {
 	Source   string   `json:"source"`   // "booth", "gumroad", etc.
 	Url      string   `json:"url"`      // Link to product page
 	ImageUrl string   `json:"imageUrl"` // Thumbnail URL
+	Shop     string   `json:"shop"`
 	Tags     []string `json:"tags"`
 }
 
@@ -51,8 +53,8 @@ func (a *App) Greet(name string) string {
 }
 
 // UpdateProduct updates the product information
-func (a *App) UpdateProduct(path string, url string, imageUrl string, tags []string) error {
-	return db.UpdateProduct(path, url, imageUrl, tags)
+func (a *App) UpdateProduct(path string, url string, imageUrl string, shopName string, tags []string) error {
+	return db.UpdateProduct(path, url, imageUrl, shopName, tags)
 }
 
 // ListFiles returns a list of files and directories in the given path
@@ -89,6 +91,7 @@ func (a *App) ListFiles(path string) ([]FileItem, error) {
 		if info != nil {
 			item.Url = info.Url
 			item.ImageUrl = info.ImageUrl
+			item.Shop = info.ShopName
 			item.Tags = info.Tags
 			// Source detection logic could go here based on URL or tags
 			if info.Url != "" {
@@ -107,6 +110,11 @@ func (a *App) ListFiles(path string) ([]FileItem, error) {
 	return items, nil
 }
 
+// GetProductByPath returns the product info for a specific path
+func (a *App) GetProductByPath(path string) (*db.ProductInfo, error) {
+	return db.GetProductInfo(path)
+}
+
 // GetParentProduct returns the nearest parent product info for a given path
 func (a *App) GetParentProduct(path string) (*db.ProductInfo, error) {
 	return db.GetParentProductInfo(path)
@@ -116,6 +124,7 @@ func (a *App) GetParentProduct(path string) (*db.ProductInfo, error) {
 type BoothInfo struct {
 	ProductURL string `json:"productUrl"`
 	ImageURL   string `json:"imageUrl"`
+	ShopName   string `json:"shopName"`
 }
 
 // AutoFetchBoothInfo automatically fetches product info from Booth based on folder name
@@ -129,6 +138,7 @@ func (a *App) AutoFetchBoothInfo(folderName string) (*BoothInfo, error) {
 	return &BoothInfo{
 		ProductURL: info.ProductURL,
 		ImageURL:   info.ImageURL,
+		ShopName:   info.ShopName,
 	}, nil
 }
 
@@ -229,8 +239,21 @@ func (a *App) FetchBoothInfoWithGemini(folderName string) (*BoothInfo, error) {
 
 	fmt.Printf("Gemini extracted info: %+v\n", info)
 
+	// Try to infer shop name from product URL (fallback)
+	shopName := ""
+	if info.ProductURL != "" {
+		if u, err := url.Parse(info.ProductURL); err == nil {
+			host := u.Hostname()
+			parts := strings.Split(host, ".")
+			if len(parts) >= 3 {
+				shopName = parts[0]
+			}
+		}
+	}
+
 	return &BoothInfo{
 		ProductURL: info.ProductURL,
 		ImageURL:   info.ImageURL,
+		ShopName:   shopName,
 	}, nil
 }

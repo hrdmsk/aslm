@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
-import { ListFiles } from '../../wailsjs/go/main/App';
+import { ListFiles, GetProductByPath } from '../../wailsjs/go/main/App';
 
 export const useFileSystemStore = defineStore('fileSystem', () => {
   const currentPath = ref('D:/VRChatAssetPack');
@@ -17,6 +17,35 @@ export const useFileSystemStore = defineStore('fileSystem', () => {
       const files = await ListFiles(path);
       fileList.value = files || [];
       currentPath.value = path;
+
+      // 現在のフォルダ自体のプロダクト情報を取得してキャッシュしておく
+      try {
+        const productInfo = await GetProductByPath(path);
+        if (productInfo) {
+          // このパス自体が商品フォルダならそれを current product context とする
+          parentProductInfo.value = productInfo;
+        } else {
+          // このパス自体が商品でない場合、以前にセットされた product context が
+          // その product フォルダの子孫であれば維持する（商品フォルダを開いた状態を継続）
+          function isAncestor(ancestor, target) {
+            if (!ancestor || !target) return false;
+            const a = ancestor.replace(/\//g, '\\').toLowerCase();
+            const t = target.replace(/\//g, '\\').toLowerCase();
+            if (a === t) return true;
+            const sep = a.endsWith('\\') ? '' : '\\';
+            return t.startsWith(a + sep);
+          }
+
+          if (parentProductInfo.value && isAncestor(parentProductInfo.value.Path, path)) {
+            // 維持
+          } else {
+            parentProductInfo.value = null;
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching product info:', err);
+        parentProductInfo.value = null;
+      }
 
       // 履歴に追加
       if (addToHistory) {

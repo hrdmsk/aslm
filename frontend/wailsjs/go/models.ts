@@ -5,6 +5,7 @@ export namespace db {
 	    Name: string;
 	    Url: string;
 	    ImageUrl: string;
+	    ShopName: string;
 	    Tags: string[];
 	
 	    static createFrom(source: any = {}) {
@@ -17,6 +18,7 @@ export namespace db {
 	        this.Name = source["Name"];
 	        this.Url = source["Url"];
 	        this.ImageUrl = source["ImageUrl"];
+	        this.ShopName = source["ShopName"];
 	        this.Tags = source["Tags"];
 	    }
 	}
@@ -28,6 +30,7 @@ export namespace main {
 	export class BoothInfo {
 	    productUrl: string;
 	    imageUrl: string;
+	    shopName: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new BoothInfo(source);
@@ -37,6 +40,7 @@ export namespace main {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.productUrl = source["productUrl"];
 	        this.imageUrl = source["imageUrl"];
+	        this.shopName = source["shopName"];
 	    }
 	}
 	export class FileItem {
@@ -46,6 +50,7 @@ export namespace main {
 	    source: string;
 	    url: string;
 	    imageUrl: string;
+	    shop: string;
 	    tags: string[];
 	
 	    static createFrom(source: any = {}) {
@@ -60,6 +65,7 @@ export namespace main {
 	        this.source = source["source"];
 	        this.url = source["url"];
 	        this.imageUrl = source["imageUrl"];
+	        this.shop = source["shop"];
 	        this.tags = source["tags"];
 	    }
 	}

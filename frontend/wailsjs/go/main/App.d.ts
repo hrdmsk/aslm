@@ -13,10 +13,12 @@ export function GetGeminiApiKey():Promise<string>;
 
 export function GetParentProduct(arg1:string):Promise<db.ProductInfo>;
 
+export function GetProductByPath(arg1:string):Promise<db.ProductInfo>;
+
 export function Greet(arg1:string):Promise<string>;
 
 export function ListFiles(arg1:string):Promise<Array<main.FileItem>>;
 
 export function SaveGeminiApiKey(arg1:string):Promise<void>;
 
-export function UpdateProduct(arg1:string,arg2:string,arg3:string,arg4:Array<string>):Promise<void>;
+export function UpdateProduct(arg1:string,arg2:string,arg3:string,arg4:string,arg5:Array<string>):Promise<void>;

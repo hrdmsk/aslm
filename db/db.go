@@ -2,6 +2,7 @@ package db
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -41,7 +42,8 @@ func createTables() error {
 		path TEXT UNIQUE NOT NULL,
 		name TEXT,
 		url TEXT,
-		image_url TEXT
+		image_url TEXT,
+		shop_name TEXT
 	);
 
 	CREATE TABLE IF NOT EXISTS tags (
@@ -63,26 +65,35 @@ func createTables() error {
 		return err
 	}
 
-	// Migration: Add image_url column if it doesn't exist (simple check)
-	// In a real app, use a migration tool. Here we just try to add it and ignore error if exists
-	migrationQuery := `ALTER TABLE products ADD COLUMN image_url TEXT;`
-	DB.Exec(migrationQuery) // Ignore error if column exists
+	// Migration: Add image_url and shop_name columns if they don't exist (simple check)
+	// In a real app, use a migration tool. Here we just try to add them and ignore error if exists
+	DB.Exec(`ALTER TABLE products ADD COLUMN image_url TEXT;`) // Ignore error if column exists
+	DB.Exec(`ALTER TABLE products ADD COLUMN shop_name TEXT;`) // Ignore error if column exists
 
 	return nil
 }
 
 // RegisterProduct registers a product if it doesn't exist
 func RegisterProduct(path string, name string) error {
+	// Prevent registering a product inside an existing product folder
+	parentInfo, err := GetParentProductInfo(path)
+	if err != nil {
+		return err
+	}
+	if parentInfo != nil {
+		return fmt.Errorf("cannot register product inside existing product: parent=%s", parentInfo.Path)
+	}
+
 	query := `INSERT OR IGNORE INTO products (path, name) VALUES (?, ?)`
-	_, err := DB.Exec(query, path, name)
+	_, err = DB.Exec(query, path, name)
 	return err
 }
 
 // UpdateProduct updates the product information
-func UpdateProduct(path string, url string, imageUrl string, tags []string) error {
+func UpdateProduct(path string, url string, imageUrl string, shopName string, tags []string) error {
 	// 1. Update product details
-	query := `UPDATE products SET url = ?, image_url = ? WHERE path = ?`
-	if _, err := DB.Exec(query, url, imageUrl, path); err != nil {
+	query := `UPDATE products SET url = ?, image_url = ?, shop_name = ? WHERE path = ?`
+	if _, err := DB.Exec(query, url, imageUrl, shopName, path); err != nil {
 		return err
 	}
 
@@ -143,6 +154,7 @@ type ProductInfo struct {
 	Name     string
 	Url      string
 	ImageUrl string
+	ShopName string
 	Tags     []string
 }
 
@@ -152,9 +164,10 @@ func GetProductInfo(path string) (*ProductInfo, error) {
 	info.Path = path
 
 	// Get basic info
-	query := `SELECT name, url, image_url FROM products WHERE path = ?`
+	query := `SELECT name, url, image_url, shop_name FROM products WHERE path = ?`
 	var url sql.NullString
 	var imageUrl sql.NullString
+	var shopName sql.NullString
 
 	err := DB.QueryRow(query, path).Scan(&info.Name, &url, &imageUrl)
 	if err == sql.ErrNoRows {
@@ -168,6 +181,9 @@ func GetProductInfo(path string) (*ProductInfo, error) {
 	}
 	if imageUrl.Valid {
 		info.ImageUrl = imageUrl.String
+	}
+	if shopName.Valid {
+		info.ShopName = shopName.String
 	}
 
 	// Get tags

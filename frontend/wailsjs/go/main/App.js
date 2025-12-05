@@ -22,6 +22,10 @@ export function GetParentProduct(arg1) {
   return window['go']['main']['App']['GetParentProduct'](arg1);
 }
 
+export function GetProductByPath(arg1) {
+  return window['go']['main']['App']['GetProductByPath'](arg1);
+}
+
 export function Greet(arg1) {
   return window['go']['main']['App']['Greet'](arg1);
 }
@@ -34,6 +38,6 @@ export function SaveGeminiApiKey(arg1) {
   return window['go']['main']['App']['SaveGeminiApiKey'](arg1);
 }
 
-export function UpdateProduct(arg1, arg2, arg3, arg4) {
-  return window['go']['main']['App']['UpdateProduct'](arg1, arg2, arg3, arg4);
+export function UpdateProduct(arg1, arg2, arg3, arg4, arg5) {
+  return window['go']['main']['App']['UpdateProduct'](arg1, arg2, arg3, arg4, arg5);
 }
