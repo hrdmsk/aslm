@@ -239,9 +239,9 @@ func (a *App) FetchBoothInfoWithGemini(folderName string) (*BoothInfo, error) {
 
 	fmt.Printf("Gemini extracted info: %+v\n", info)
 
-	// Try to infer shop name from product URL (fallback)
-	shopName := ""
-	if info.ProductURL != "" {
+	// Use Gemini's extracted shop name, or fall back to URL inference if empty
+	shopName := info.ShopName
+	if shopName == "" && info.ProductURL != "" {
 		if u, err := url.Parse(info.ProductURL); err == nil {
 			host := u.Hostname()
 			parts := strings.Split(host, ".")

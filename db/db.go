@@ -169,7 +169,7 @@ func GetProductInfo(path string) (*ProductInfo, error) {
 	var imageUrl sql.NullString
 	var shopName sql.NullString
 
-	err := DB.QueryRow(query, path).Scan(&info.Name, &url, &imageUrl)
+	err := DB.QueryRow(query, path).Scan(&info.Name, &url, &imageUrl, &shopName)
 	if err == sql.ErrNoRows {
 		return nil, nil // Not found is not an error here, just return nil
 	} else if err != nil {

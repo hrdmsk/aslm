@@ -192,7 +192,7 @@ function normalizeInfo(info) {
     name: info.name || info.Name || null,
     url: info.url || info.Url || info.URL || null,
     imageUrl: info.imageUrl || info.ImageUrl || info.ImageURL || info.image_url || null,
-    shopName: info.shop || info.Shop || info.ShopName || info.shopName || null,
+    shopName: info.shop || info.Shop || info.ShopName || info.shopName || info.shop_name || null,
     tags: info.tags || info.Tags || []
   };
 }
@@ -280,7 +280,10 @@ watch(() => props.item, (newItem) => {
     editUrl.value = newItem.url || '';
     editImageUrl.value = newItem.imageUrl || '';
     editTags.value = newItem.tags ? newItem.tags.join(', ') : '';
-    editShopName.value = newItem.shop || newItem.Shop || '';
+    // shopが空欄ならproductInfoから補完
+    editShopName.value = (newItem.shop && newItem.shop.trim() !== '')
+      ? newItem.shop
+      : (productInfo.value ? productInfo.value.shopName : '') || '';
   }
 }, { immediate: true });
 
@@ -290,7 +293,10 @@ const startEditing = () => {
     editUrl.value = props.item.url || (productInfo.value ? productInfo.value.url : '') || '';
     editImageUrl.value = props.item.imageUrl || (productInfo.value ? productInfo.value.imageUrl : '') || '';
     editTags.value = props.item.tags ? props.item.tags.join(', ') : '';
-    editShopName.value = props.item.shop || (productInfo.value ? productInfo.value.shopName : '') || '';
+    // shopが空欄ならproductInfoから補完
+    editShopName.value = (props.item.shop && props.item.shop.trim() !== '')
+      ? props.item.shop
+      : (productInfo.value ? productInfo.value.shopName : '') || '';
     isEditing.value = true;
     fetchError.value = '';
   }
@@ -307,21 +313,19 @@ const openUrl = (url) => {
 
 const searchProductUrl = async () => {
   if (!props.item) return;
-  
+  // Gemini実行時に自動で編集モードに入る
+  isEditing.value = true;
   fetchError.value = '';
   isFetching.value = true;
-  
   try {
     // Use Gemini API to search
     const info = await FetchBoothInfoWithGemini(props.item.name);
+    console.log('Geminiレスポンス:', info);
     editUrl.value = info.productUrl || '';
     editImageUrl.value = info.imageUrl || '';
-    editShopName.value = info.shopName || '';
-
-    // Update the item properties immediately for preview
-    props.item.url = info.productUrl || '';
-    props.item.imageUrl = info.imageUrl || '';
-    props.item.shop = info.shopName || '';
+    editShopName.value = info.shopName || info.shop_name || '';
+    console.log('editShopName.value:', editShopName.value);
+    // props.itemへの即時反映はやめ、保存時にのみ反映
   } catch (error) {
     console.error('Failed to search Booth:', error);
     if (error.message && error.message.includes('API key not configured')) {
@@ -336,48 +340,40 @@ const searchProductUrl = async () => {
 
 const saveChanges = async () => {
   if (!props.item) return;
-  
   const tagsArray = editTags.value.split(',').map(t => t.trim()).filter(t => t);
-  
   try {
     await UpdateProduct(props.item.path, editUrl.value, editImageUrl.value, editShopName.value, tagsArray);
-
-    // プロパティ更新
-    props.item.url = editUrl.value;
-    props.item.imageUrl = editImageUrl.value;
-    props.item.tags = tagsArray;
-    props.item.shop = editShopName.value;
-    
     isEditing.value = false;
     fetchError.value = '';
-    // 更新後、DB側の最新の product info を取得してストアとローカル nearestParent を更新
+    // 保存後、DBから最新情報を取得し、props.itemやnearestParent、ストアに反映
+    let updated = null;
     try {
-      let updated = null;
+      updated = await GetProductByPath(props.item.path);
+    } catch (e) {
+      updated = null;
+    }
+    if (!updated) {
       try {
-        updated = await GetProductByPath(props.item.path);
+        updated = await GetParentProduct(props.item.path);
       } catch (e) {
         updated = null;
       }
-      if (!updated) {
-        try {
-          updated = await GetParentProduct(props.item.path);
-        } catch (e) {
-          updated = null;
+    }
+    if (updated) {
+      // props.itemの情報をDB取得値で上書き
+      props.item.url = updated.Url || updated.url || '';
+      props.item.imageUrl = updated.ImageUrl || updated.imageUrl || '';
+      props.item.tags = updated.Tags || updated.tags || [];
+      props.item.shop = updated.ShopName || updated.shopName || '';
+      nearestParent.value = updated;
+      // ストアのproduct contextも更新
+      if (fileSystem.parentProductInfo) {
+        const storePath = fileSystem.parentProductInfo.Path || fileSystem.parentProductInfo.path || '';
+        const updPath = updated.Path || updated.path || '';
+        if (storePath === updPath || isAncestor(updPath, storePath)) {
+          fileSystem.parentProductInfo = updated;
         }
       }
-      if (updated) {
-        nearestParent.value = updated;
-        // update store product context when appropriate
-        if (fileSystem.parentProductInfo) {
-          const storePath = fileSystem.parentProductInfo.Path || fileSystem.parentProductInfo.path || '';
-          const updPath = updated.Path || updated.path || '';
-          if (storePath === updPath || isAncestor(updPath, storePath)) {
-            fileSystem.parentProductInfo = updated;
-          }
-        }
-      }
-    } catch (e) {
-      console.warn('Failed to refresh product info after save:', e);
     }
   } catch (error) {
     console.error('Failed to save:', error);
